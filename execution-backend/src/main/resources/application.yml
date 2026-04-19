@@ -1,0 +1,43 @@
+spring:
+  application:
+    name: execution-backend
+  datasource:
+    url: ${TBOT_DB_URL:jdbc:postgresql://localhost:5432/tbot}
+    username: ${TBOT_DB_USERNAME:tbot}
+    password: ${TBOT_DB_PASSWORD:tbot}
+    hikari:
+      maximum-pool-size: ${TBOT_DB_MAX_POOL_SIZE:10}
+      minimum-idle: ${TBOT_DB_MIN_IDLE:2}
+      connection-timeout: ${TBOT_DB_CONNECTION_TIMEOUT_MS:3000}
+      idle-timeout: ${TBOT_DB_IDLE_TIMEOUT_MS:600000}
+      max-lifetime: ${TBOT_DB_MAX_LIFETIME_MS:1800000}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+        format_sql: true
+  flyway:
+    enabled: true
+  jackson:
+    time-zone: UTC
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+tbot:
+  api:
+    allowed-origin: ${TBOT_ALLOWED_ORIGIN:http://localhost:3000}
+  risk:
+    max-portfolio-exposure: ${TBOT_MAX_PORTFOLIO_EXPOSURE:10000}
+    max-daily-drawdown: ${TBOT_MAX_DAILY_DRAWDOWN:500}
+    max-confidence-rejection-threshold: ${TBOT_MIN_SIGNAL_CONFIDENCE:0.55}
+    illiquid-assets:
+      - DOGE/USDT
+      - PEPE/USDT
+    artificial-latency-ms: ${TBOT_ARTIFICIAL_LATENCY_MS:100}
+    slippage-bps: ${TBOT_SLIPPAGE_BPS:10}

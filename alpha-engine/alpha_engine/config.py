@@ -1,0 +1,31 @@
+from __future__ import annotations
+
+import os
+from dataclasses import dataclass
+from decimal import Decimal
+
+from dotenv import load_dotenv
+
+
+@dataclass(slots=True)
+class EngineConfig:
+    backend_base_url: str
+    default_exchange: str
+    default_symbol: str
+    polling_interval_seconds: int
+    order_notional: Decimal
+    strategy_name: str
+    use_sandbox: bool
+
+
+def load_config() -> EngineConfig:
+    load_dotenv()
+    return EngineConfig(
+        backend_base_url=os.getenv("TBOT_BACKEND_URL", "http://localhost:8080"),
+        default_exchange=os.getenv("TBOT_DEFAULT_EXCHANGE", "bybit"),
+        default_symbol=os.getenv("TBOT_DEFAULT_SYMBOL", "BTC/USDT"),
+        polling_interval_seconds=int(os.getenv("TBOT_POLLING_SECONDS", "30")),
+        order_notional=Decimal(os.getenv("TBOT_ORDER_NOTIONAL", "100")),
+        strategy_name=os.getenv("TBOT_STRATEGY_NAME", "mean-reversion-v1"),
+        use_sandbox=os.getenv("TBOT_USE_SANDBOX", "true").lower() == "true",
+    )

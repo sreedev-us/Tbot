@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: tbot-postgres
+    environment:
+      POSTGRES_DB: tbot
+      POSTGRES_USER: tbot
+      POSTGRES_PASSWORD: tbot
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+volumes:
+  postgres-data:
