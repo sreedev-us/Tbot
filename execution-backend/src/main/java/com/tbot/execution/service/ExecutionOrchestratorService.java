@@ -27,6 +27,7 @@ public class ExecutionOrchestratorService {
     private final TelemetryService telemetryService;
     private final RiskProperties riskProperties;
     private final ControlCommandService controlCommandService;
+    private final PaperTradeService paperTradeService;
 
     public ExecutionOrchestratorService(
             OrderRecordRepository orderRecordRepository,
@@ -34,7 +35,8 @@ public class ExecutionOrchestratorService {
             RiskManagementService riskManagementService,
             TelemetryService telemetryService,
             RiskProperties riskProperties,
-            ControlCommandService controlCommandService
+            ControlCommandService controlCommandService,
+            PaperTradeService paperTradeService
     ) {
         this.orderRecordRepository = orderRecordRepository;
         this.executionRecordRepository = executionRecordRepository;
@@ -42,6 +44,7 @@ public class ExecutionOrchestratorService {
         this.telemetryService = telemetryService;
         this.riskProperties = riskProperties;
         this.controlCommandService = controlCommandService;
+        this.paperTradeService = paperTradeService;
     }
 
     @Transactional
@@ -54,6 +57,9 @@ public class ExecutionOrchestratorService {
                     existing.getRejectionReason(),
                     null,
                     existing.getRequestedNotional(),
+                    existing.getRequestedNotional(),
+                    BigDecimal.ZERO,
+                    BigDecimal.ZERO,
                     BigDecimal.ZERO,
                     Instant.now()
             );
@@ -84,6 +90,9 @@ public class ExecutionOrchestratorService {
                     null,
                     BigDecimal.ZERO,
                     BigDecimal.ZERO,
+                    BigDecimal.ZERO,
+                    BigDecimal.ZERO,
+                    BigDecimal.ZERO,
                     Instant.now()
             );
         }
@@ -107,18 +116,22 @@ public class ExecutionOrchestratorService {
                     null,
                     BigDecimal.ZERO,
                     BigDecimal.ZERO,
+                    BigDecimal.ZERO,
+                    decision.sentimentScore(),
+                    decision.sentimentConfidence(),
                     Instant.now()
             );
         }
 
+        order.setRequestedNotional(decision.approvedNotional());
         order.setStatus(OrderStatus.ROUTED);
         order.setRoutedAt(Instant.now());
 
         Instant exchangeAckAt = Instant.now().plusMillis(riskProperties.getArtificialLatencyMs());
-        BigDecimal slippageFee = request.requestedNotional()
+        BigDecimal slippageFee = decision.approvedNotional()
                 .multiply(riskProperties.getSlippageBps())
                 .divide(BigDecimal.valueOf(10_000), 8, RoundingMode.HALF_UP);
-        BigDecimal executedNotional = request.requestedNotional().subtract(slippageFee).max(BigDecimal.ZERO);
+        BigDecimal executedNotional = decision.approvedNotional().subtract(slippageFee).max(BigDecimal.ZERO);
 
         ExecutionRecord execution = new ExecutionRecord();
         execution.setOrder(order);
@@ -126,7 +139,7 @@ public class ExecutionOrchestratorService {
         execution.setExchangeName(request.exchange());
         execution.setAction(request.action());
         execution.setStatus(ExecutionStatus.SIMULATED);
-        execution.setRequestedNotional(request.requestedNotional());
+        execution.setRequestedNotional(decision.approvedNotional());
         execution.setExecutedNotional(executedNotional);
         execution.setSlippageFee(slippageFee);
         execution.setExchangeAckAt(exchangeAckAt);
@@ -135,6 +148,12 @@ public class ExecutionOrchestratorService {
 
         order.setStatus(OrderStatus.EXECUTED);
         order.setCompletedAt(execution.getFillConfirmedAt());
+        paperTradeService.openTrade(
+                order,
+                request.marketPrice(),
+                request.stopLossPrice(),
+                request.takeProfitPrice()
+        );
 
         if (controlCommandService.getState().liquidationRequested()) {
             controlCommandService.clearActiveCommand(CommandType.LIQUIDATE_ALL);
@@ -153,8 +172,11 @@ public class ExecutionOrchestratorService {
                 order.getStatus(),
                 "SIMULATED_FILL",
                 execution.getVenueOrderId(),
+                decision.approvedNotional(),
                 executedNotional,
                 slippageFee,
+                decision.sentimentScore(),
+                decision.sentimentConfidence(),
                 Instant.now()
         );
     }

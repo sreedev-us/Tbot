@@ -18,17 +18,24 @@ public class ControlCommandService {
 
     private final ControlCommandRepository controlCommandRepository;
     private final TelemetryService telemetryService;
+    private final SupabaseJwtIdentityService supabaseJwtIdentityService;
+    private final PaperTradeService paperTradeService;
 
     public ControlCommandService(
             ControlCommandRepository controlCommandRepository,
-            TelemetryService telemetryService
+            TelemetryService telemetryService,
+            SupabaseJwtIdentityService supabaseJwtIdentityService,
+            PaperTradeService paperTradeService
     ) {
         this.controlCommandRepository = controlCommandRepository;
         this.telemetryService = telemetryService;
+        this.supabaseJwtIdentityService = supabaseJwtIdentityService;
+        this.paperTradeService = paperTradeService;
     }
 
     @Transactional
-    public ControlCommandResponse issue(ControlCommandRequest request) {
+    public ControlCommandResponse issue(ControlCommandRequest request, String authorizationHeader) {
+        String initiatedBy = supabaseJwtIdentityService.extractUserId(authorizationHeader);
         if (request.commandType() == CommandType.RESUME_ENGINE) {
             clearActiveCommand(CommandType.HALT_ENGINE);
         }
@@ -40,7 +47,7 @@ public class ControlCommandService {
         ControlCommand command = new ControlCommand();
         command.setCommandType(request.commandType());
         command.setStatus(CommandStatus.ACTIVE);
-        command.setInitiatedBy(request.initiatedBy());
+        command.setInitiatedBy(initiatedBy);
         command.setReason(request.reason());
         command.setCreatedAt(Instant.now());
         ControlCommand saved = controlCommandRepository.save(command);
@@ -50,10 +57,32 @@ public class ControlCommandService {
                 request.commandType().name().toLowerCase(),
                 BigDecimal.ONE,
                 "count",
-                "initiatedBy=" + request.initiatedBy()
+                "initiatedBy=" + initiatedBy
         );
 
+        if (request.commandType() == CommandType.LIQUIDATE_ALL) {
+            int closedTrades = paperTradeService.liquidateAllOpenTrades("LIQUIDATE_ALL").size();
+            telemetryService.record(
+                    "control",
+                    "demo_liquidation_closed_trades",
+                    BigDecimal.valueOf(closedTrades),
+                    "count",
+                    "initiatedBy=" + initiatedBy
+            );
+            saved.setStatus(CommandStatus.CLEARED);
+            saved.setResolvedAt(Instant.now());
+        }
+
         return toResponse(saved);
+    }
+
+    @Transactional
+    public ControlCommandResponse issueSystemCommand(CommandType commandType, String reason) {
+        ControlCommandRequest request = new ControlCommandRequest(commandType, reason);
+        String syntheticAuthorization = "Bearer "
+                + "eyJhbGciOiJub25lIn0."
+                + "eyJzdWIiOiJzeXN0ZW0tc2h1dGRvd24taG9vayJ9.";
+        return issue(request, syntheticAuthorization);
     }
 
     public ControlStateResponse getState() {

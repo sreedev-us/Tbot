@@ -9,8 +9,11 @@ public record ExecutionDecisionResponse(
         OrderStatus status,
         String reason,
         String venueOrderId,
+        BigDecimal approvedNotional,
         BigDecimal executedNotional,
         BigDecimal slippageFee,
+        BigDecimal sentimentScore,
+        BigDecimal sentimentConfidence,
         Instant processedAt
 ) {
 }

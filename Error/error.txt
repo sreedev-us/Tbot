@@ -1,0 +1,98 @@
+Failed to load resource: the server responded with a status of 500 ()
+wmpkqdbftotydbmgagxw.supabase.co/rest/v1/control_commands?select=%2A&order=created_at.desc.nullslast:1  Failed to load resource: the server responded with a status of 400 ()
+wmpkqdbftotydbmgagxw.supabase.co/rest/v1/orders?select=%2A&order=received_at.desc.nullslast:1  Failed to load resource: the server responded with a status of 400 ()
+wmpkqdbftotydbmgagxw.supabase.co/rest/v1/executions?select=%2A&order=fill_confirmed_at.desc.nullslast:1  Failed to load resource: the server responded with a status of 400 ()
+wmpkqdbftotydbmgagxw.supabase.co/rest/v1/control_commands?select=%2A&order=created_at.desc.nullslast:1  Failed to load resource: the server responded with a status of 400 ()
+wmpkqdbftotydbmgagxw.supabase.co/rest/v1/orders?select=%2A&order=received_at.desc.nullslast:1  Failed to load resource: the server responded with a status of 400 ()
+wmpkqdbftotydbmgagxw.supabase.co/rest/v1/executions?select=%2A&order=fill_confirmed_at.desc.nullslast:1  Failed to load resource: the server responded with a status of 400 ()
+snapshot:1  Failed to load resource: the server responded with a status of 500 ()
+snapshot:1  Failed to load resource: the server responded with a status of 500 ()
+snapshot:1  Failed to load resource: the server responded with a status of 500 ()
+snapshot:1  Failed to load resource: the server responded with a status of 500 ()
+wmpkqdbftotydbmgagxw.supabase.co/rest/v1/orders?select=%2A&order=received_at.desc.nullslast:1  Failed to load resource: the server responded with a status of 400 ()
+wmpkqdbftotydbmgagxw.supabase.co/rest/v1/control_commands?select=%2A&order=created_at.desc.nullslast:1  Failed to load resource: the server responded with a status of 400 ()
+wmpkqdbftotydbmgagxw.supabase.co/rest/v1/executions?select=%2A&order=fill_confirmed_at.desc.nullslast:1  Failed to load resource: the server responded with a status of 400 ()
+wmpkqdbftotydbmgagxw.supabase.co/rest/v1/orders?select=%2A&order=received_at.desc.nullslast:1  Failed to load resource: the server responded with a status of 400 ()
+wmpkqdbftotydbmgagxw.supabase.co/rest/v1/control_commands?select=%2A&order=created_at.desc.nullslast:1  Failed to load resource: the server responded with a status of 400 ()
+wmpkqdbftotydbmgagxw.supabase.co/rest/v1/executions?select=%2A&order=fill_confirmed_at.desc.nullslast:1  Failed to load resource: the server responded with a status of 400 ()
+snapshot:1  Failed to load resource: the server responded with a status of 500 ()
+snapshot:1  Failed to load resource: the server responded with a status of 500 ()
+snapshot:1  Failed to load resource: the server responded with a status of 500 ()
+wmpkqdbftotydbmgagxw.supabase.co/rest/v1/executions?select=%2A&order=fill_confirmed_at.desc.nullslast:1  Failed to load resource: the server responded with a status of 400 ()
+wmpkqdbftotydbmgagxw.supabase.co/rest/v1/orders?select=%2A&order=received_at.desc.nullslast:1  Failed to load resource: the server responded with a status of 400 ()
+wmpkqdbftotydbmgagxw.supabase.co/rest/v1/control_commands?select=%2A&order=created_at.desc.nullslast:1  Failed to load resource: the server responded with a status of 400 ()
+wmpkqdbftotydbmgagxw.supabase.co/rest/v1/executions?select=%2A&order=fill_confirmed_at.desc.nullslast:1  Failed to load resource: the server responded with a status of 400 ()
+wmpkqdbftotydbmgagxw.supabase.co/rest/v1/orders?select=%2A&order=received_at.desc.nullslast:1  Failed to load resource: the server responded with a status of 400 ()
+wmpkqdbftotydbmgagxw.supabase.co/rest/v1/control_commands?select=%2A&order=created_at.desc.nullslast:1  Failed to load resource: the server responded with a status of 400 ()
+:8080/api/v1/dashboard/snapshot:1  Failed to load resource: the server responded with a status of 500 ()
+wmpkqdbftotydbmgagxw.supabase.co/rest/v1/executions?select=%2A&order=fill_confirmed_at.desc.nullslast:1  Failed to load resource: the server responded with a status of 400 ()
+wmpkqdbftotydbmgagxw.supabase.co/rest/v1/orders?select=%2A&order=received_at.desc.nullslast:1  Failed to load resource: the server responded with a status of 400 ()
+wmpkqdbftotydbmgagxw.supabase.co/rest/v1/control_commands?select=%2A&order=created_at.desc.nullslast:1  Failed to load resource: the server responded with a status of 400 ()
+wmpkqdbftotydbmgagxw.supabase.co/rest/v1/executions?select=%2A&order=fill_confirmed_at.desc.nullslast:1  Failed to load resource: the server responded with a status of 400 ()
+wmpkqdbftotydbmgagxw.supabase.co/rest/v1/orders?select=%2A&order=received_at.desc.nullslast:1  Failed to load resource: the server responded with a status of 400 ()
+wmpkqdbftotydbmgagxw.supabase.co/rest/v1/control_commands?select=%2A&order=created_at.desc.nullslast:1  Failed to load resource: the server responded with a status of 400 ()
+:8080/api/v1/dashboard/snapshot:1  Failed to load resource: the server responded with a status of 500 ()
+:8080/api/v1/dashboard/snapshot:1  Failed to load resource: the server responded with a status of 500 ()
+:8080/api/v1/dashboard/snapshot:1  Failed to load resource: the server responded with a status of 500 ()
+:8080/api/v1/dashboard/snapshot:1  Failed to load resource: the server responded with a status of 500 ()
+
+main.dart.js:81276  GET http://localhost:8080/api/v1/dashboard/snapshot 500 (Internal Server Error)
+(anonymous) @ main.dart.js:81276
+(anonymous) @ main.dart.js:4813
+$2 @ main.dart.js:36303
+$1 @ main.dart.js:36297
+apV @ main.dart.js:37094
+Av @ main.dart.js:37097
+$0 @ main.dart.js:36681
+qf @ main.dart.js:4908
+ru @ main.dart.js:36601
+$0 @ main.dart.js:36645
+aQE @ main.dart.js:4940
+aQV @ main.dart.js:4942
+$1 @ main.dart.js:36248
+childList
+$1 @ main.dart.js:36255
+aCF @ main.dart.js:4947
+vE @ main.dart.js:5014
+ew @ main.dart.js:4959
+vl @ main.dart.js:36966
+aen @ main.dart.js:36840
+Eu @ main.dart.js:36782
+cA @ main.dart.js:36947
+cA @ main.dart.js:36736
+Xg @ main.dart.js:81359
+(anonymous) @ main.dart.js:81253
+(anonymous) @ main.dart.js:4813
+$2 @ main.dart.js:36303
+D @ main.dart.js:4799
+Yz @ main.dart.js:81318
+eM @ main.dart.js:81239
+(anonymous) @ main.dart.js:81215
+(anonymous) @ main.dart.js:4813
+$2 @ main.dart.js:36303
+D @ main.dart.js:4799
+aef @ main.dart.js:81220
+jp @ main.dart.js:81197
+x8 @ main.dart.js:81198
+$1 @ main.dart.js:81161
+(anonymous) @ main.dart.js:23945
+(anonymous) @ main.dart.js:4813
+$2 @ main.dart.js:36303
+D @ main.dart.js:4799
+aR7 @ main.dart.js:23961
+vG @ main.dart.js:23937
+aDa @ main.dart.js:23933
+(anonymous) @ main.dart.js:85627
+(anonymous) @ main.dart.js:4813
+$2 @ main.dart.js:36303
+D @ main.dart.js:4799
+yN @ main.dart.js:85652
+(anonymous) @ main.dart.js:85265
+(anonymous) @ main.dart.js:4813
+$2 @ main.dart.js:36303
+D @ main.dart.js:4799
+aaw @ main.dart.js:85283
+ni @ main.dart.js:85258
+$1 @ main.dart.js:85341
+$0 @ main.dart.js:36284
+main.dart.js:81276  GET http://localhost:8080/api/v1/dashboard/snapshot 500 (Internal Server Error)

@@ -18,6 +18,9 @@ public record ExecutionSignalRequest(
         @NotNull @DecimalMin("0.0") @DecimalMax("1.0") BigDecimal confidence,
         @NotNull @DecimalMin("0.00000001") BigDecimal requestedNotional,
         @NotBlank String strategyName,
-        @NotNull Instant generatedAt
+        @NotNull Instant generatedAt,
+        @NotNull @DecimalMin("0.00000001") BigDecimal marketPrice,
+        @NotNull @DecimalMin("0.00000001") BigDecimal stopLossPrice,
+        @NotNull @DecimalMin("0.00000001") BigDecimal takeProfitPrice
 ) {
 }

@@ -8,6 +8,7 @@ import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -35,7 +36,10 @@ public class ControlController {
     }
 
     @PostMapping("/commands")
-    public ResponseEntity<ControlCommandResponse> issue(@Valid @RequestBody ControlCommandRequest request) {
-        return ResponseEntity.status(HttpStatus.ACCEPTED).body(controlCommandService.issue(request));
+    public ResponseEntity<ControlCommandResponse> issue(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @Valid @RequestBody ControlCommandRequest request
+    ) {
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(controlCommandService.issue(request, authorization));
     }
 }

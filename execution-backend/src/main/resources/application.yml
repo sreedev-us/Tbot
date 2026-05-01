@@ -36,6 +36,11 @@ tbot:
     max-portfolio-exposure: ${TBOT_MAX_PORTFOLIO_EXPOSURE:10000}
     max-daily-drawdown: ${TBOT_MAX_DAILY_DRAWDOWN:500}
     max-confidence-rejection-threshold: ${TBOT_MIN_SIGNAL_CONFIDENCE:0.55}
+    negative-sentiment-block-threshold: ${TBOT_NEGATIVE_SENTIMENT_BLOCK_THRESHOLD:-0.80}
+    positive-sentiment-boost-threshold: ${TBOT_POSITIVE_SENTIMENT_BOOST_THRESHOLD:0.70}
+    sentiment-confidence-floor: ${TBOT_SENTIMENT_CONFIDENCE_FLOOR:0.60}
+    positive-sentiment-position-multiplier: ${TBOT_POSITIVE_SENTIMENT_POSITION_MULTIPLIER:1.20}
+    sentiment-max-age-seconds: ${TBOT_SENTIMENT_MAX_AGE_SECONDS:900}
     illiquid-assets:
       - DOGE/USDT
       - PEPE/USDT

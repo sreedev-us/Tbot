@@ -19,6 +19,9 @@ class RawSignal:
     requested_notional: Decimal
     strategy_name: str
     generated_at: datetime
+    market_price: Decimal
+    stop_loss_price: Decimal
+    take_profit_price: Decimal
 
     def to_payload(self) -> dict[str, str]:
         return {
@@ -31,6 +34,9 @@ class RawSignal:
             "requestedNotional": str(self.requested_notional),
             "strategyName": self.strategy_name,
             "generatedAt": self.generated_at.isoformat().replace("+00:00", "Z"),
+            "marketPrice": str(self.market_price),
+            "stopLossPrice": str(self.stop_loss_price),
+            "takeProfitPrice": str(self.take_profit_price),
         }
 
 
@@ -40,6 +46,8 @@ def evaluate_mean_reversion(
     symbol: str,
     order_notional: Decimal,
     strategy_name: str,
+    stop_loss_pct: Decimal,
+    take_profit_pct: Decimal,
 ) -> RawSignal | None:
     closes = df["close"]
     fast_ma = closes.tail(5).mean()
@@ -51,14 +59,28 @@ def evaluate_mean_reversion(
         return None
 
     confidence = min(max(edge * 10, 0.55), 0.99)
+    action = "BUY" if current_price < fast_ma else "SELL"
+    market_price = Decimal(str(round(float(current_price), 8)))
+    stop_multiplier = stop_loss_pct / Decimal("100")
+    take_multiplier = take_profit_pct / Decimal("100")
+    if action == "BUY":
+        stop_loss_price = market_price * (Decimal("1") - stop_multiplier)
+        take_profit_price = market_price * (Decimal("1") + take_multiplier)
+    else:
+        stop_loss_price = market_price * (Decimal("1") + stop_multiplier)
+        take_profit_price = market_price * (Decimal("1") - take_multiplier)
+
     return RawSignal(
         signal_id=f"sig-{uuid4().hex[:16]}",
         correlation_id=uuid4().hex[:16],
         asset=symbol,
         exchange=exchange,
-        action="BUY" if current_price < fast_ma else "SELL",
+        action=action,
         confidence=Decimal(str(round(confidence, 4))),
         requested_notional=order_notional,
         strategy_name=strategy_name,
         generated_at=datetime.now(UTC),
+        market_price=market_price,
+        stop_loss_price=stop_loss_price.quantize(Decimal("0.00000001")),
+        take_profit_price=take_profit_price.quantize(Decimal("0.00000001")),
     )

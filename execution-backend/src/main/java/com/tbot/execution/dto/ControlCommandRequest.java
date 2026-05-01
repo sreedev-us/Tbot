@@ -6,7 +6,6 @@ import jakarta.validation.constraints.NotNull;
 
 public record ControlCommandRequest(
         @NotNull CommandType commandType,
-        @NotBlank String initiatedBy,
         @NotBlank String reason
 ) {
 }
