@@ -8,6 +8,7 @@ from sentiment_oracle.config import load_config
 from sentiment_oracle.feed import load_feed_events
 from sentiment_oracle.filters import matches_entities
 from sentiment_oracle.local_models import build_model
+from sentiment_oracle.scraper import scrape_news
 
 
 def run() -> None:
@@ -25,6 +26,14 @@ def run() -> None:
     )
 
     while True:
+        # Auto-scrape fresh news on every cycle
+        try:
+            new_count = scrape_news(config.feed_file)
+            if new_count > 0:
+                print(f"[Scraper] Fetched {new_count} new articles.")
+        except Exception as exc:
+            print(f"[Scraper] Failed to fetch news: {exc}")
+
         for event in load_feed_events(config.feed_file):
             fingerprint = hashlib.sha256(
                 f"{event.source}|{event.headline}|{event.observed_at}".encode("utf-8")
