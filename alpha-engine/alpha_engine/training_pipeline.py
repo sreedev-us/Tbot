@@ -215,17 +215,55 @@ class FeatureEngineer:
         feats["day_cos"] = np.cos(2 * np.pi * weekdays / 7.0)
 
         # ---------------------------------------------------------------------
-        # 8. Sentiment & News (Mocked for now if missing)
+        # 8. Server AI Replicated Features
         # ---------------------------------------------------------------------
-        if "sentiment" in df.columns:
-            feats["sentiment"] = df["sentiment"]
-            feats["sentiment_ma_5"] = df["sentiment"].rolling(window=5).mean().fillna(0)
-        elif sentiment_data:
-            sent_series = df["timestamp"].map(sentiment_data).fillna(0.0)
-            feats["sentiment"] = sent_series
-            feats["sentiment_ma_5"] = sent_series.rolling(5).mean()
+        # We replicate the Java Server AI logic exactly on historical data 
+        # to train XGBoost without looking into the future (no data leakage).
+        # During live inference, the engine provides these values.
+        
+        # Trend Direction
+        if "server_trend" in df.columns:
+            # Live inference maps string enums to floats
+            trend_map = {"BULLISH": 1.0, "BEARISH": -1.0, "NEUTRAL": 0.0}
+            feats["server_trend"] = df["server_trend"].map(trend_map).fillna(0.0)
         else:
-            feats["sentiment"] = 0.0
+            is_bullish = (close > sma_series[20]) & (sma_series[20] > sma_series[50])
+            is_bearish = (close < sma_series[20]) & (sma_series[20] < sma_series[50])
+            feats["server_trend"] = 0.0
+            feats["server_trend"] = np.where(is_bullish, 1.0, feats["server_trend"])
+            feats["server_trend"] = np.where(is_bearish, -1.0, feats["server_trend"])
+
+        # Volatility Level
+        if "server_volatility" in df.columns:
+            vol_map = {"LOW": 0.0, "MEDIUM": 1.0, "HIGH": 2.0, "EXTREME": 3.0}
+            feats["server_volatility"] = df["server_volatility"].map(vol_map).fillna(1.0)
+        else:
+            cv_50 = close.rolling(50).std(ddof=0) / (sma_series[50] + eps)
+            feats["server_volatility"] = np.select(
+                [cv_50 < 0.02, cv_50 < 0.05, cv_50 < 0.10],
+                [0.0, 1.0, 2.0],
+                default=3.0
+            )
+
+        # Market Regime
+        if "server_regime" in df.columns:
+            regime_map = {"MEAN_REVERSION": 0.0, "CHOPPY": 1.0, "TRENDING": 2.0}
+            feats["server_regime"] = df["server_regime"].map(regime_map).fillna(1.0)
+        else:
+            max_50 = close.rolling(50).max()
+            min_50 = close.rolling(50).min()
+            range_pct_50 = (max_50 - min_50) / (sma_series[50] + eps)
+            feats["server_regime"] = np.select(
+                [range_pct_50 < 0.03, range_pct_50 > 0.10],
+                [0.0, 2.0],
+                default=1.0
+            )
+
+        # Sentiment & News (Set to Neutral for backtesting to avoid leakage)
+        feats["sentiment"] = df["sentiment"] if "sentiment" in df.columns else 0.0
+        if isinstance(feats["sentiment"], pd.Series):
+            feats["sentiment_ma_5"] = feats["sentiment"].rolling(window=5).mean().fillna(0)
+        else:
             feats["sentiment_ma_5"] = 0.0
 
         # ---------------------------------------------------------------------

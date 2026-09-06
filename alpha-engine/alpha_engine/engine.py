@@ -16,24 +16,6 @@ from alpha_engine.signals import evaluate_mean_reversion
 from alpha_engine.ai_signals import AISignalEvaluator
 
 
-def fetch_live_sentiment(backend_url: str, symbol: str) -> float:
-    """Fetch the latest market sentiment score for a symbol from the backend.
-    Returns a float in [-1.0, 1.0], defaulting to 0.0 if unavailable."""
-    try:
-        response = requests.get(
-            f"{backend_url}/api/v1/sentiment",
-            params={"asset": symbol},
-            timeout=3,
-        )
-        if response.status_code == 204:
-            return 0.0
-        response.raise_for_status()
-        data = response.json()
-        return float(data.get("score", 0.0))
-    except Exception:
-        return 0.0
-
-
 def fetch_ohlcv_frame(exchange: Any, symbol: str, timeframe: str = "1m", limit: int = 100) -> pd.DataFrame:
     candles = exchange.fetch_ohlcv(symbol, timeframe=timeframe, limit=limit)
     frame = pd.DataFrame(
@@ -174,15 +156,26 @@ def run() -> None:
 
             # Generate signal using configured strategy
             if config.ai_enable and ai_evaluator is not None:
-                # Fetch live sentiment score from backend and inject into df
-                sentiment_score = fetch_live_sentiment(config.backend_base_url, config.default_symbol)
+                # Fetch full server AI analysis
+                server_analysis = ai_evaluator.get_server_ai_analysis(frame, config.default_symbol, config.default_exchange)
+                if not server_analysis:
+                    logger.warning("Could not fetch server analysis, skipping cycle")
+                    time.sleep(config.polling_seconds)
+                    continue
+                    
+                # Incorporate server analysis into the local feature space 
                 frame = frame.copy()
-                frame["sentiment"] = sentiment_score
+                frame["server_regime"] = server_analysis.get("regime", "CHOPPY")
+                frame["server_trend"] = server_analysis.get("trend", "NEUTRAL")
+                frame["server_volatility"] = server_analysis.get("volatility", "MEDIUM")
+                frame["sentiment"] = 0.0 # Neutral sentiment to prevent leakage in benchmarks
+
                 signal_obj = ai_evaluator.evaluate_ai_signal(
                     df=frame,
                     exchange=config.default_exchange,
                     symbol=config.default_symbol,
                     order_notional=config.order_notional,
+                    server_analysis=server_analysis,
                     strategy_name=f"ai-{config.ai_model_version}",
                     stop_loss_pct=config.stop_loss_pct,
                     take_profit_pct=config.take_profit_pct,

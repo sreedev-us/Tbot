@@ -1,8 +1,8 @@
 {
-  "version": "local-v4.0.0",
+  "version": "local-benchmark-b",
   "model_type": "xgboost",
-  "model_hash": "cf8c8dedc26823bc885366f09bc978ad9468cbec2747063bb415322038a158cd",
-  "created_at": "2026-09-06T10:25:50.092496",
+  "model_hash": "2502f84addfe15a174b8d2ea0529ee159530687f3c4268e6a503b2ba2c998647",
+  "created_at": "2026-09-06T11:08:55.033549",
   "feature_columns": [
     "returns",
     "log_return_1",
@@ -59,6 +59,9 @@
     "hour_cos",
     "day_sin",
     "day_cos",
+    "server_trend",
+    "server_volatility",
+    "server_regime",
     "sentiment",
     "sentiment_ma_5",
     "price_open",
@@ -67,32 +70,32 @@
     "price_close"
   ],
   "metrics": {
-    "accuracy": 0.7309458572917069,
-    "precision": 0.7297212501668119,
-    "recall": 0.7309458572917069,
-    "f1": 0.7292345903479702,
+    "accuracy": 0.7214911434415159,
+    "precision": 0.7185752073037222,
+    "recall": 0.7214911434415159,
+    "f1": 0.7177128761659839,
     "confusion_matrix": [
       [
-        23769,
-        251,
-        5736
+        24239,
+        252,
+        5265
       ],
       [
-        792,
-        1479,
-        481
+        790,
+        1488,
+        474
       ],
       [
-        6424,
-        260,
-        12634
+        7392,
+        261,
+        11665
       ]
     ]
   },
   "framework": "xgboost",
   "training_samples": 259130,
-  "feature_count": 61,
-  "training_date": "2026-09-06T10:25:49.942884",
+  "feature_count": 64,
+  "training_date": "2026-09-06T11:08:53.760846",
   "config": {
     "lookback_window": 50,
     "lookahead_window": 20,

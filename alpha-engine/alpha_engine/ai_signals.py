@@ -104,14 +104,12 @@ class AISignalEvaluator:
             latest = df.iloc[-1]
             payload = {
                 "asset": symbol,
-                "exchange": exchange,
-                "close": float(latest["close"]),
-                "high": float(latest["high"]),
-                "low": float(latest["low"]),
+                "currentPrice": float(latest["close"]),
+                "recentPrices": df["close"].tail(50).tolist(),
+                "timestamps": [int(pd.Timestamp(t).timestamp() * 1000) for t in df["timestamp"].tail(50)],
                 "volume": float(latest["volume"]),
-                "timestamp": pd.Timestamp(latest["timestamp"]).isoformat(),
-                "priceHistory": df["close"].tail(50).tolist(),
-                "volumeHistory": df["volume"].tail(50).tolist(),
+                "sentiment": 0.0,
+                "sentimentConfidence": 0.0,
             }
 
             response = requests.post(
@@ -159,13 +157,14 @@ class AISignalEvaluator:
         exchange: str,
         symbol: str,
         order_notional: Decimal,
+        server_analysis: dict[str, Any],
         strategy_name: str = "ai-benchmark",
         stop_loss_pct: Decimal = Decimal("1.5"),
         take_profit_pct: Decimal = Decimal("3.0"),
     ) -> Optional[RawSignal]:
         """
-        Evaluate a signal using in-engine local model inference.
-        Falls back to server AI analysis if local model is unavailable.
+        Evaluate a signal using in-engine local model inference, 
+        incorporating Server AI context.
         """
         if df.empty or len(df) < 20:
             return None
@@ -245,52 +244,6 @@ class AISignalEvaluator:
                 )
                 return signal
             except Exception as exc:
-                logger.warning("Error during local AI inference, falling back: %s", exc)
+                logger.warning("Error during local AI inference: %s", exc)
+                return None
 
-        # ---------------------------------------------------------------------
-        # 2. Fallback: Backend HTTP Route (if local model not loaded)
-        # ---------------------------------------------------------------------
-        server_analysis = self.get_server_ai_analysis(df, symbol, exchange)
-        if server_analysis is None:
-            return None
-
-        local_decision = self.get_local_ai_decision(
-            server_analysis,
-            symbol,
-            exchange,
-            market_price,
-        )
-        if local_decision is None:
-            return None
-
-        decision = local_decision.get("decision", "HOLD")
-        confidence = Decimal(str(local_decision.get("confidence", 0.5)))
-
-        if decision not in ("BUY", "SELL"):
-            return None
-
-        confidence_factor = Decimal("1.0") + (confidence - Decimal("0.5")) * Decimal("0.5")
-        stop_loss_spread = stop_loss_pct / confidence_factor
-        take_profit_spread = take_profit_pct / confidence_factor
-
-        if decision == "BUY":
-            stop_loss_price = market_price * (Decimal("1") - stop_loss_spread / Decimal("100"))
-            take_profit_price = market_price * (Decimal("1") + take_profit_spread / Decimal("100"))
-        else:
-            stop_loss_price = market_price * (Decimal("1") + stop_loss_spread / Decimal("100"))
-            take_profit_price = market_price * (Decimal("1") - take_profit_spread / Decimal("100"))
-
-        return RawSignal(
-            signal_id=str(uuid4()),
-            correlation_id=str(uuid4()),
-            asset=symbol,
-            exchange=exchange,
-            action=decision,
-            confidence=confidence,
-            requested_notional=order_notional,
-            strategy_name=strategy_name,
-            generated_at=datetime.now(UTC),
-            market_price=market_price,
-            stop_loss_price=Decimal(str(round(float(stop_loss_price), 8))),
-            take_profit_price=Decimal(str(round(float(take_profit_price), 8))),
-        )
