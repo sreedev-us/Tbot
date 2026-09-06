@@ -280,14 +280,88 @@ class FeatureEngineer:
             feats["sentiment_ma_5"] = 0.0
 
         # ---------------------------------------------------------------------
+        # Phase 4: Market-Regime and Trend-State Features
+        # D2a: Trend strength and momentum features
+        # D2b: Volatility and regime state features
+        # D2c: Both D2a and D2b
+        # ---------------------------------------------------------------------
+        if ablation_level in ("D2a", "D2c"):
+            # ADX-14 (Average Directional Index) — trend strength
+            # Uses Wilder smoothing, same as RSI
+            sma200 = close.rolling(200, min_periods=1).mean()
+            high_s = high
+            low_s  = low
+
+            # True Range components
+            _tr0 = high_s - low_s
+            _tr1 = (high_s - close.shift(1)).abs()
+            _tr2 = (low_s  - close.shift(1)).abs()
+            _tr  = pd.concat([_tr0, _tr1, _tr2], axis=1).max(axis=1)
+
+            # Directional movements
+            _dm_plus  = ((high_s - high_s.shift(1)).clip(lower=0)
+                         .where(high_s - high_s.shift(1) > low_s.shift(1) - low_s, 0))
+            _dm_minus = ((low_s.shift(1) - low_s).clip(lower=0)
+                         .where(low_s.shift(1) - low_s > high_s - high_s.shift(1), 0))
+
+            _atr14  = _tr.ewm(span=14, adjust=False).mean()
+            _di_p   = 100 * _dm_plus.ewm(span=14, adjust=False).mean() / (_atr14 + eps)
+            _di_m   = 100 * _dm_minus.ewm(span=14, adjust=False).mean() / (_atr14 + eps)
+            _dx     = 100 * (_di_p - _di_m).abs() / (_di_p + _di_m + eps)
+            feats["adx_14"]      = _dx.ewm(span=14, adjust=False).mean()
+            feats["di_plus_14"]  = _di_p
+            feats["di_minus_14"] = _di_m
+
+            # Price distance from 200-SMA (slow trend anchor)
+            feats["sma200_ratio"] = (close - sma200) / (sma200 + eps)
+
+            # MA slope: rate of change of SMA-50 over 5 bars
+            feats["sma50_slope_5"] = (sma_series[50] - sma_series[50].shift(5)) / (sma_series[50].shift(5) + eps)
+
+            # Multi-timeframe momentum
+            for h in [5, 10, 20, 50, 100]:
+                feats[f"mom_{h}"] = (close - close.shift(h)) / (close.shift(h) + eps)
+
+            # Higher-high / lower-low breakout state (last 20 bars)
+            roll_high_20 = high_s.rolling(20).max()
+            roll_low_20  = low_s.rolling(20).min()
+            feats["near_high_20"] = (close - roll_low_20) / (roll_high_20 - roll_low_20 + eps)
+
+        if ablation_level in ("D2b", "D2c"):
+            # ATR percentile over rolling 50-bar window
+            _tr_b0 = high - low
+            _tr_b1 = (high - close.shift(1)).abs()
+            _tr_b2 = (low  - close.shift(1)).abs()
+            _tr_b  = pd.concat([_tr_b0, _tr_b1, _tr_b2], axis=1).max(axis=1)
+            _atr_b = _tr_b.ewm(span=14, adjust=False).mean()
+            _atr_norm_b = _atr_b / (close + eps)
+
+            feats["atr_pct_rank_50"] = _atr_norm_b.rolling(50, min_periods=1).rank(pct=True)
+
+            # Realised volatility percentile (20-bar vol vs. 100-bar rolling window)
+            _vol20 = feats["log_return_1"].rolling(20).std()
+            feats["vol_pct_rank_100"] = _vol20.rolling(100, min_periods=1).rank(pct=True)
+
+            # Volatility regime ratio: short-term vs. medium-term vol
+            _vol50 = feats["log_return_1"].rolling(50).std()
+            feats["vol_regime_ratio"] = _vol20 / (_vol50 + eps)
+
+            # Bollinger Band squeeze: BB bandwidth percentile (low = squeeze = potential breakout)
+            _bb_mid = close.rolling(20).mean()
+            _bb_std = close.rolling(20).std()
+            _bb_bw  = (_bb_std * 4) / (_bb_mid + eps)  # normalized bandwidth
+            feats["bb_squeeze_rank"] = _bb_bw.rolling(50, min_periods=1).rank(pct=True)
+
+        # ---------------------------------------------------------------------
         # 9. Raw Price Features
         # ---------------------------------------------------------------------
-        feats["price_open"] = open_price
-        feats["price_high"] = high
-        feats["price_low"] = low
+        feats["price_open"]  = open_price
+        feats["price_high"]  = high
+        feats["price_low"]   = low
         feats["price_close"] = close
 
         features_df = pd.DataFrame(feats, index=df.index)
+
         # Drop any columns in df that overlap with engineered features to avoid duplicates
         cols_to_drop = [c for c in df.columns if c in features_df.columns]
         df_clean = df.drop(columns=cols_to_drop)
