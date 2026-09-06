@@ -67,9 +67,11 @@ class FeatureEngineer:
         self,
         ohlcv_data: pd.DataFrame,
         sentiment_data: Optional[dict] = None,
+        fng_df: Optional[pd.DataFrame] = None,
     ) -> pd.DataFrame:
         """
-        Engineer stationary quantitative features from OHLCV and sentiment data.
+        Engineer stationary quantitative features from OHLCV, sentiment, and
+        Fear & Greed Index data.
 
         All engineered indicators are normalized (percentages, log returns, z-scores,
         or bounded ratios) to ensure stationarity and prevent decision tree distortion.
@@ -215,51 +217,44 @@ class FeatureEngineer:
         feats["day_cos"] = np.cos(2 * np.pi * weekdays / 7.0)
 
         # ---------------------------------------------------------------------
-        # 8. Server AI Replicated Features
+        # 8. Fear & Greed Index Features (historical, no leakage)
         # ---------------------------------------------------------------------
-        # We replicate the Java Server AI logic exactly on historical data 
-        # to train XGBoost without looking into the future (no data leakage).
-        # During live inference, the engine provides these values.
-        
-        # Trend Direction
-        if "server_trend" in df.columns:
-            # Live inference maps string enums to floats
-            trend_map = {"BULLISH": 1.0, "BEARISH": -1.0, "NEUTRAL": 0.0}
-            feats["server_trend"] = df["server_trend"].map(trend_map).fillna(0.0)
-        else:
-            is_bullish = (close > sma_series[20]) & (sma_series[20] > sma_series[50])
-            is_bearish = (close < sma_series[20]) & (sma_series[20] < sma_series[50])
-            feats["server_trend"] = 0.0
-            feats["server_trend"] = np.where(is_bullish, 1.0, feats["server_trend"])
-            feats["server_trend"] = np.where(is_bearish, -1.0, feats["server_trend"])
+        # F&G is published at 00:00 UTC using data through 23:59 of the PRIOR day.
+        # We join on UTC date only — candle at 14:30 on day D uses FNG[D].
+        # This is strictly causal: FNG[D] cannot contain information after 23:59 on D-1.
+        if fng_df is not None and not fng_df.empty:
+            # Ensure date column is date-typed
+            fng = fng_df.copy()
+            fng["date"] = pd.to_datetime(fng["date"]).dt.date
+            fng = fng.sort_values("date").reset_index(drop=True)
 
-        # Volatility Level
-        if "server_volatility" in df.columns:
-            vol_map = {"LOW": 0.0, "MEDIUM": 1.0, "HIGH": 2.0, "EXTREME": 3.0}
-            feats["server_volatility"] = df["server_volatility"].map(vol_map).fillna(1.0)
-        else:
-            cv_50 = close.rolling(50).std(ddof=0) / (sma_series[50] + eps)
-            feats["server_volatility"] = np.select(
-                [cv_50 < 0.02, cv_50 < 0.05, cv_50 < 0.10],
-                [0.0, 1.0, 2.0],
-                default=3.0
+            # Compute rolling 14-day z-score and 7-day MA on fng_norm (using past only)
+            fng["fng_zscore_14"] = (
+                (fng["fng_norm"] - fng["fng_norm"].rolling(14, min_periods=1).mean())
+                / (fng["fng_norm"].rolling(14, min_periods=1).std().replace(0, 1e-8))
             )
+            fng["fng_ma_7"] = fng["fng_norm"].rolling(7, min_periods=1).mean()
 
-        # Market Regime
-        if "server_regime" in df.columns:
-            regime_map = {"MEAN_REVERSION": 0.0, "CHOPPY": 1.0, "TRENDING": 2.0}
-            feats["server_regime"] = df["server_regime"].map(regime_map).fillna(1.0)
-        else:
-            max_50 = close.rolling(50).max()
-            min_50 = close.rolling(50).min()
-            range_pct_50 = (max_50 - min_50) / (sma_series[50] + eps)
-            feats["server_regime"] = np.select(
-                [range_pct_50 < 0.03, range_pct_50 > 0.10],
-                [0.0, 2.0],
-                default=1.0
+            # Date-align to candles (broadcast daily value to all intraday candles)
+            candle_dates = df["timestamp"].dt.date
+            date_to_fng = fng.set_index("date")[["fng_norm", "fng_zscore_14", "fng_ma_7"]]
+            fng_aligned = candle_dates.map(lambda d: date_to_fng.loc[d] if d in date_to_fng.index else None)
+            feats["fng_norm"] = fng_aligned.apply(
+                lambda x: x["fng_norm"] if x is not None else 0.0
             )
+            feats["fng_zscore_14"] = fng_aligned.apply(
+                lambda x: x["fng_zscore_14"] if x is not None else 0.0
+            )
+            feats["fng_ma_7"] = fng_aligned.apply(
+                lambda x: x["fng_ma_7"] if x is not None else 0.0
+            )
+        else:
+            # No F&G data available — fill with neutral (0.0) for inference compatibility
+            feats["fng_norm"] = 0.0
+            feats["fng_zscore_14"] = 0.0
+            feats["fng_ma_7"] = 0.0
 
-        # Sentiment & News (Set to Neutral for backtesting to avoid leakage)
+        # Sentiment & News (live engine injects this; neutral in pure backtest)
         feats["sentiment"] = df["sentiment"] if "sentiment" in df.columns else 0.0
         if isinstance(feats["sentiment"], pd.Series):
             feats["sentiment_ma_5"] = feats["sentiment"].rolling(window=5).mean().fillna(0)
@@ -399,6 +394,7 @@ class TrainingDataGenerator:
         self,
         ohlcv_data: pd.DataFrame,
         sentiment_data: Optional[dict] = None,
+        fng_df: Optional[pd.DataFrame] = None,
         output_file: Optional[str] = None,
     ) -> pd.DataFrame:
         """
@@ -407,13 +403,14 @@ class TrainingDataGenerator:
         Args:
             ohlcv_data: OHLCV DataFrame with [timestamp, open, high, low, close, volume]
             sentiment_data: Optional mapping of timestamp -> sentiment
+            fng_df: Optional Fear & Greed Index DataFrame with [date, fng_norm, ...]
             output_file: Optional file path to persist the CSV
 
         Returns:
             DataFrame containing engineered features, target labels, and metadata.
         """
         logger.info("Engineering stationary quantitative features...")
-        df = self.feature_engineer.engineer_features(ohlcv_data, sentiment_data)
+        df = self.feature_engineer.engineer_features(ohlcv_data, sentiment_data, fng_df=fng_df)
 
         logger.info("Generating Triple Barrier target labels...")
         df = self.label_generator.generate_labels(df)
