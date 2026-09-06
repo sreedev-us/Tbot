@@ -1,0 +1,101 @@
+{
+  "version": "local-gpu-smoke",
+  "preset": "smoke",
+  "rows_raw": 260505,
+  "rows_training": 260435,
+  "feature_count": 34,
+  "train_rows": 208348,
+  "validation_rows": 52087,
+  "accuracy": 0.9708564517057999,
+  "precision": 0.9425622498187762,
+  "recall": 0.9708564517057999,
+  "f1": 0.9565001540350412,
+  "confusion_matrix": [
+    [
+      0,
+      1254,
+      0
+    ],
+    [
+      0,
+      50569,
+      0
+    ],
+    [
+      0,
+      264,
+      0
+    ]
+  ],
+  "model_hash": "f72874b468883a1e6bf63ed9469ca512a73ced78424e941624571f860d8d8135",
+  "created_at": "2026-09-05T11:42:31.548144+00:00",
+  "framework": "xgboost",
+  "device": "cuda",
+  "class_mapping": {
+    "0": "SELL",
+    "1": "HOLD",
+    "2": "BUY"
+  },
+  "original_label_mapping": {
+    "-1": "SELL",
+    "0": "HOLD",
+    "1": "BUY"
+  },
+  "feature_columns": [
+    "open",
+    "high",
+    "low",
+    "close",
+    "volume",
+    "returns",
+    "log_returns",
+    "sma_5",
+    "ema_5",
+    "sma_10",
+    "ema_10",
+    "sma_20",
+    "ema_20",
+    "sma_50",
+    "ema_50",
+    "volatility_20",
+    "volatility_50",
+    "rsi_14",
+    "macd",
+    "macd_signal",
+    "macd_diff",
+    "bb_middle",
+    "bb_upper",
+    "bb_lower",
+    "bb_position",
+    "volume_ma_20",
+    "volume_ratio",
+    "hl_ratio",
+    "hl_spread",
+    "price_above_sma20",
+    "price_above_sma50",
+    "sma20_above_sma50",
+    "sentiment",
+    "sentiment_ma_5"
+  ],
+  "xgboost_params": {
+    "objective": "multi:softprob",
+    "num_class": 3,
+    "eval_metric": "mlogloss",
+    "tree_method": "hist",
+    "device": "cuda",
+    "random_state": 42,
+    "max_depth": 3,
+    "learning_rate": 0.1,
+    "n_estimators": 25,
+    "subsample": 0.8,
+    "colsample_bytree": 0.8,
+    "max_bin": 128
+  },
+  "csv_path": "data\\demo\\BTC_USDT_1m.csv",
+  "artifacts": {
+    "pickle_model": "models\\local-gpu-smoke\\model.pkl",
+    "xgboost_json_model": "models\\local-gpu-smoke\\model.json",
+    "scaler": "models\\local-gpu-smoke\\scaler.pkl",
+    "training_data": "models\\local-gpu-smoke\\training_data.csv"
+  }
+}

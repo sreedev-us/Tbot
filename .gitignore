@@ -6,3 +6,17 @@ __pycache__/
 *.pyc
 Thumbs.db
 run-logs/
+
+# Large data and model binary files (stored on HuggingFace instead)
+alpha-engine/models/**/*.pkl
+alpha-engine/models/**/training_data.csv
+alpha-engine/models/training_data.csv
+alpha-engine/models/optuna_temp/
+alpha-engine/data/live/
+alpha-engine/training_data/
+
+# Optuna DBs
+*.db
+
+# Pytest cache
+.pytest_cache/

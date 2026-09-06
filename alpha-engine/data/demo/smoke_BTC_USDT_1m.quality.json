@@ -1,0 +1,10 @@
+{
+  "rows": 1439,
+  "duplicate_timestamps": 0,
+  "missing_candles": 0,
+  "invalid_ohlc_rows": 0,
+  "non_positive_price_rows": 0,
+  "non_positive_volume_rows": 0,
+  "first_timestamp": "2026-09-03T13:50:00+00:00",
+  "last_timestamp": "2026-09-04T13:48:00+00:00"
+}

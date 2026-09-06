@@ -13,6 +13,7 @@ from alpha_engine.backend_client import close_trade, get_open_trade, send_teleme
 from alpha_engine.config import load_config
 from alpha_engine.exchanges import build_exchange
 from alpha_engine.signals import evaluate_mean_reversion
+from alpha_engine.ai_signals import AISignalEvaluator
 
 
 def fetch_ohlcv_frame(exchange: Any, symbol: str, timeframe: str = "1m", limit: int = 100) -> pd.DataFrame:
@@ -91,6 +92,10 @@ def run() -> None:
     config = load_config()
     exchange = build_exchange(config.default_exchange, config.use_sandbox)
     should_run = True
+    ai_evaluator = AISignalEvaluator(
+        config.backend_base_url,
+        model_version=config.ai_model_version,
+    ) if config.ai_enable else None
 
     def _handle_shutdown(_signum: int, _frame: object) -> None:
         nonlocal should_run
@@ -109,9 +114,11 @@ def run() -> None:
 
     signal.signal(signal.SIGINT, _handle_shutdown)
     signal.signal(signal.SIGTERM, _handle_shutdown)
+    
+    strategy_mode = "AI" if config.ai_enable else "Mean-Reversion"
     print(
         f"Alpha engine started for {config.default_exchange}:{config.default_symbol} "
-        f"(sandbox={config.use_sandbox})"
+        f"(sandbox={config.use_sandbox}, strategy={strategy_mode})"
     )
 
     while should_run:
@@ -147,20 +154,33 @@ def run() -> None:
                 time.sleep(config.polling_interval_seconds)
                 continue
 
-            signal = evaluate_mean_reversion(
-                df=frame,
-                exchange=config.default_exchange,
-                symbol=config.default_symbol,
-                order_notional=config.order_notional,
-                strategy_name=config.strategy_name,
-                stop_loss_pct=config.stop_loss_pct,
-                take_profit_pct=config.take_profit_pct,
-            )
-            if signal is None:
+            # Generate signal using configured strategy
+            if config.ai_enable and ai_evaluator is not None:
+                signal_obj = ai_evaluator.evaluate_ai_signal(
+                    df=frame,
+                    exchange=config.default_exchange,
+                    symbol=config.default_symbol,
+                    order_notional=config.order_notional,
+                    strategy_name=f"ai-{config.ai_model_version}",
+                    stop_loss_pct=config.stop_loss_pct,
+                    take_profit_pct=config.take_profit_pct,
+                )
+            else:
+                signal_obj = evaluate_mean_reversion(
+                    df=frame,
+                    exchange=config.default_exchange,
+                    symbol=config.default_symbol,
+                    order_notional=config.order_notional,
+                    strategy_name=config.strategy_name,
+                    stop_loss_pct=config.stop_loss_pct,
+                    take_profit_pct=config.take_profit_pct,
+                )
+            
+            if signal_obj is None:
                 print("No signal generated for this cycle.")
             else:
-                response = submit_signal(config.backend_base_url, signal)
-                print(f"Submitted {signal.signal_id}: {response}")
+                response = submit_signal(config.backend_base_url, signal_obj)
+                print(f"Submitted {signal_obj.signal_id}: {response}")
         except requests.HTTPError as exc:
             body = exc.response.text if exc.response is not None else "<no response>"
             print(f"Backend rejected signal: {body}")

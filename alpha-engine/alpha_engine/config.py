@@ -19,6 +19,8 @@ class EngineConfig:
     use_sandbox: bool
     stop_loss_pct: Decimal
     take_profit_pct: Decimal
+    ai_enable: bool
+    ai_model_version: str
 
 
 def load_config() -> EngineConfig:
@@ -34,4 +36,6 @@ def load_config() -> EngineConfig:
         use_sandbox=os.getenv("TBOT_USE_SANDBOX", "true").lower() == "true",
         stop_loss_pct=Decimal(os.getenv("TBOT_STOP_LOSS_PCT", "0.5")),
         take_profit_pct=Decimal(os.getenv("TBOT_TAKE_PROFIT_PCT", "1.0")),
+        ai_enable=os.getenv("TBOT_AI_ENABLE", "false").lower() == "true",
+        ai_model_version=os.getenv("TBOT_AI_MODEL_VERSION", "local-gpu-benchmark-v1.0.0"),
     )

@@ -1,0 +1,111 @@
+{
+  "version": "local-gpu-v1.0.0",
+  "preset": "large",
+  "rows_raw": 260505,
+  "rows_training": 260435,
+  "feature_count": 34,
+  "train_rows": 208348,
+  "validation_rows": 52087,
+  "accuracy": 0.9574173978151939,
+  "precision": 0.9483661545311777,
+  "recall": 0.9574173978151939,
+  "f1": 0.9528030300064368,
+  "confusion_matrix": [
+    [
+      117,
+      1135,
+      2
+    ],
+    [
+      748,
+      49752,
+      69
+    ],
+    [
+      54,
+      210,
+      0
+    ]
+  ],
+  "label_distribution": {
+    "SELL": 10292,
+    "HOLD": 248506,
+    "BUY": 1637
+  },
+  "prediction_distribution": {
+    "SELL": 919,
+    "HOLD": 51097,
+    "BUY": 71
+  },
+  "model_hash": "ca1ecebba1c2eac9dd48bfc02fd90650a292fbe475f7927bb0d8e3094af1bb06",
+  "created_at": "2026-09-05T11:46:16.735586+00:00",
+  "framework": "xgboost",
+  "device": "cuda",
+  "class_mapping": {
+    "0": "SELL",
+    "1": "HOLD",
+    "2": "BUY"
+  },
+  "original_label_mapping": {
+    "-1": "SELL",
+    "0": "HOLD",
+    "1": "BUY"
+  },
+  "feature_columns": [
+    "open",
+    "high",
+    "low",
+    "close",
+    "volume",
+    "returns",
+    "log_returns",
+    "sma_5",
+    "ema_5",
+    "sma_10",
+    "ema_10",
+    "sma_20",
+    "ema_20",
+    "sma_50",
+    "ema_50",
+    "volatility_20",
+    "volatility_50",
+    "rsi_14",
+    "macd",
+    "macd_signal",
+    "macd_diff",
+    "bb_middle",
+    "bb_upper",
+    "bb_lower",
+    "bb_position",
+    "volume_ma_20",
+    "volume_ratio",
+    "hl_ratio",
+    "hl_spread",
+    "price_above_sma20",
+    "price_above_sma50",
+    "sma20_above_sma50",
+    "sentiment",
+    "sentiment_ma_5"
+  ],
+  "xgboost_params": {
+    "objective": "multi:softprob",
+    "num_class": 3,
+    "eval_metric": "mlogloss",
+    "tree_method": "hist",
+    "device": "cuda",
+    "random_state": 42,
+    "max_depth": 8,
+    "learning_rate": 0.02,
+    "n_estimators": 2500,
+    "subsample": 0.8,
+    "colsample_bytree": 0.8,
+    "max_bin": 512
+  },
+  "csv_path": "data\\demo\\BTC_USDT_1m.csv",
+  "artifacts": {
+    "pickle_model": "models\\local-gpu-v1.0.0\\model.pkl",
+    "xgboost_json_model": "models\\local-gpu-v1.0.0\\model.json",
+    "scaler": "models\\local-gpu-v1.0.0\\scaler.pkl",
+    "training_data": "models\\local-gpu-v1.0.0\\training_data.csv"
+  }
+}

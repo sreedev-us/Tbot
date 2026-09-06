@@ -1,0 +1,170 @@
+{
+  "version": "local-gpu-benchmark-v1.0.0",
+  "preset": "benchmark",
+  "rows_raw": 260518,
+  "rows_training": 260448,
+  "feature_count": 57,
+  "train_rows": 208358,
+  "validation_rows": 52090,
+  "accuracy": 0.48644653484354,
+  "precision": 0.5079222057740324,
+  "recall": 0.48644653484354,
+  "f1": 0.49206881620323667,
+  "confusion_matrix": [
+    [
+      13994,
+      3170,
+      10187
+    ],
+    [
+      909,
+      3141,
+      1582
+    ],
+    [
+      8043,
+      2860,
+      8204
+    ]
+  ],
+  "label_distribution": {
+    "SELL": 149842,
+    "HOLD": 13710,
+    "BUY": 96896
+  },
+  "prediction_distribution": {
+    "SELL": 22946,
+    "HOLD": 9171,
+    "BUY": 19973
+  },
+  "model_hash": "e0d373dc588408d7d98daaa2bb934f43148df56362abec4ee4983e31ba5b85fa",
+  "created_at": "2026-09-05T12:16:54.856064+00:00",
+  "framework": "xgboost",
+  "device": "cuda",
+  "class_mapping": {
+    "0": "SELL",
+    "1": "HOLD",
+    "2": "BUY"
+  },
+  "original_label_mapping": {
+    "-1": "SELL",
+    "0": "HOLD",
+    "1": "BUY"
+  },
+  "feature_columns": [
+    "returns",
+    "log_return_1",
+    "log_return_2",
+    "log_return_3",
+    "log_return_5",
+    "log_return_10",
+    "log_return_20",
+    "log_return_50",
+    "log_returns",
+    "sma_ratio_5",
+    "ema_ratio_5",
+    "sma_ratio_10",
+    "ema_ratio_10",
+    "sma_ratio_20",
+    "ema_ratio_20",
+    "sma_ratio_50",
+    "ema_ratio_50",
+    "sma_cross_5_20",
+    "sma_cross_10_50",
+    "ema_cross_5_20",
+    "price_above_sma20",
+    "price_above_sma50",
+    "sma20_above_sma50",
+    "volatility_20",
+    "volatility_50",
+    "volatility_ratio",
+    "atr_norm_14",
+    "volatility_parkinson_20",
+    "volatility_garman_klass_20",
+    "rsi_7",
+    "rsi_14",
+    "rsi_21",
+    "rsi_slope_3",
+    "macd_norm",
+    "macd_signal_norm",
+    "macd_diff_norm",
+    "bb_position",
+    "bb_bandwidth",
+    "stoch_k",
+    "stoch_d",
+    "volume_ma_20",
+    "volume_ratio",
+    "volume_zscore_20",
+    "volume_zscore_50",
+    "volume_price_trend",
+    "hl_ratio",
+    "hl_spread",
+    "body_size",
+    "candle_direction",
+    "upper_shadow",
+    "lower_shadow",
+    "hour_sin",
+    "hour_cos",
+    "day_sin",
+    "day_cos",
+    "sentiment",
+    "sentiment_ma_5"
+  ],
+  "xgboost_params": {
+    "objective": "multi:softprob",
+    "num_class": 3,
+    "eval_metric": "mlogloss",
+    "tree_method": "hist",
+    "device": "cuda",
+    "random_state": 42,
+    "max_depth": 6,
+    "learning_rate": 0.03,
+    "n_estimators": 1000,
+    "subsample": 0.85,
+    "colsample_bytree": 0.85,
+    "max_bin": 256,
+    "reg_alpha": 0.1,
+    "reg_lambda": 1.0,
+    "early_stopping_rounds": 50
+  },
+  "classification_report": {
+    "SELL": {
+      "precision": 0.6098666434236905,
+      "recall": 0.5116449124346459,
+      "f1-score": 0.5564546593236177,
+      "support": 27351.0
+    },
+    "HOLD": {
+      "precision": 0.34249263984298334,
+      "recall": 0.5577059659090909,
+      "f1-score": 0.42437343781665876,
+      "support": 5632.0
+    },
+    "BUY": {
+      "precision": 0.41075451860011014,
+      "recall": 0.4293714345527817,
+      "f1-score": 0.41985670419651994,
+      "support": 19107.0
+    },
+    "accuracy": 0.48644653484354,
+    "macro avg": {
+      "precision": 0.45437126728892796,
+      "recall": 0.4995741042988395,
+      "f1-score": 0.46689493377893215,
+      "support": 52090.0
+    },
+    "weighted avg": {
+      "precision": 0.5079222057740324,
+      "recall": 0.48644653484354,
+      "f1-score": 0.49206881620323667,
+      "support": 52090.0
+    }
+  },
+  "csv_path": "data\\demo\\BTC_USDT_1m.csv",
+  "artifacts": {
+    "pickle_model": "models\\local-gpu-benchmark-v1.0.0\\model.pkl",
+    "xgboost_json_model": "models\\local-gpu-benchmark-v1.0.0\\model.json",
+    "scaler": "models\\local-gpu-benchmark-v1.0.0\\scaler.pkl",
+    "training_data": "models\\local-gpu-benchmark-v1.0.0\\training_data.csv"
+  }
+}
