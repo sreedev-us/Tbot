@@ -68,10 +68,18 @@ class FeatureEngineer:
         ohlcv_data: pd.DataFrame,
         sentiment_data: Optional[dict] = None,
         fng_df: Optional[pd.DataFrame] = None,
+        ablation_level: str = "C3",
     ) -> pd.DataFrame:
         """
         Engineer stationary quantitative features from OHLCV, sentiment, and
         Fear & Greed Index data.
+
+        ablation_level controls F&G features:
+        - 'B' : None
+        - 'C1': fng_norm
+        - 'C2': fng_norm, fng_ma_7
+        - 'C3': fng_norm, fng_ma_7, fng_zscore_14
+
 
         All engineered indicators are normalized (percentages, log returns, z-scores,
         or bounded ratios) to ensure stationarity and prevent decision tree distortion.
@@ -217,37 +225,47 @@ class FeatureEngineer:
         feats["day_cos"] = np.cos(2 * np.pi * weekdays / 7.0)
 
         # ---------------------------------------------------------------------
-        # 8. Fear & Greed Index Features (historical, no leakage)
+        # 8. Fear & Greed Index Features (Strict Causal Join)
         # ---------------------------------------------------------------------
-        # F&G is published at 00:00 UTC using data through 23:59 of the PRIOR day.
-        # We join on UTC date only — candle at 14:30 on day D uses FNG[D].
-        # This is strictly causal: FNG[D] cannot contain information after 23:59 on D-1.
-        if fng_df is not None and not fng_df.empty:
-            # Ensure date column is date-typed
+        # F&G is published at 00:00:00 UTC. 
+        # We use pd.merge_asof on timestamps to guarantee no lookahead:
+        # candle_ts >= fng_published_ts.
+        if fng_df is not None and not fng_df.empty and ablation_level != "B":
             fng = fng_df.copy()
-            fng["date"] = pd.to_datetime(fng["date"]).dt.date
-            fng = fng.sort_values("date").reset_index(drop=True)
+            # Convert F&G date back to a UTC datetime representing its exact publication time
+            fng["published_at"] = pd.to_datetime(fng["date"], utc=True)
+            fng = fng.sort_values("published_at").reset_index(drop=True)
 
-            # Compute rolling 14-day z-score and 7-day MA on fng_norm (using past only)
-            fng["fng_zscore_14"] = (
-                (fng["fng_norm"] - fng["fng_norm"].rolling(14, min_periods=1).mean())
-                / (fng["fng_norm"].rolling(14, min_periods=1).std().replace(0, 1e-8))
+            # Calculate causal rolling features
+            if ablation_level in ["C2", "C3"]:
+                fng["fng_ma_7"] = fng["fng_norm"].rolling(7, min_periods=1).mean()
+            
+            if ablation_level == "C3":
+                fng["fng_zscore_14"] = (
+                    (fng["fng_norm"] - fng["fng_norm"].rolling(14, min_periods=1).mean())
+                    / (fng["fng_norm"].rolling(14, min_periods=1).std().replace(0, 1e-8))
+                )
+            
+            # Use merge_asof for a perfectly strict causal join
+            # candle gets the most recent F&G value published before or at the candle's time
+            temp_df = df[["timestamp"]].copy()
+            merged = pd.merge_asof(
+                temp_df, fng,
+                left_on="timestamp", right_on="published_at",
+                direction="backward"
             )
-            fng["fng_ma_7"] = fng["fng_norm"].rolling(7, min_periods=1).mean()
+            
+            # C1 features
+            feats["fng_norm"] = merged["fng_norm"].fillna(0.0)
+            
+            # C2 features
+            if ablation_level in ["C2", "C3"]:
+                feats["fng_ma_7"] = merged["fng_ma_7"].fillna(0.0)
+                
+            # C3 features
+            if ablation_level == "C3":
+                feats["fng_zscore_14"] = merged["fng_zscore_14"].fillna(0.0)
 
-            # Date-align to candles (broadcast daily value to all intraday candles)
-            candle_dates = df["timestamp"].dt.date
-            date_to_fng = fng.set_index("date")[["fng_norm", "fng_zscore_14", "fng_ma_7"]]
-            fng_aligned = candle_dates.map(lambda d: date_to_fng.loc[d] if d in date_to_fng.index else None)
-            feats["fng_norm"] = fng_aligned.apply(
-                lambda x: x["fng_norm"] if x is not None else 0.0
-            )
-            feats["fng_zscore_14"] = fng_aligned.apply(
-                lambda x: x["fng_zscore_14"] if x is not None else 0.0
-            )
-            feats["fng_ma_7"] = fng_aligned.apply(
-                lambda x: x["fng_ma_7"] if x is not None else 0.0
-            )
         else:
             # No F&G data available — fill with neutral (0.0) for inference compatibility
             feats["fng_norm"] = 0.0
@@ -395,6 +413,7 @@ class TrainingDataGenerator:
         ohlcv_data: pd.DataFrame,
         sentiment_data: Optional[dict] = None,
         fng_df: Optional[pd.DataFrame] = None,
+        ablation_level: str = "C3",
         output_file: Optional[str] = None,
     ) -> pd.DataFrame:
         """
@@ -404,13 +423,16 @@ class TrainingDataGenerator:
             ohlcv_data: OHLCV DataFrame with [timestamp, open, high, low, close, volume]
             sentiment_data: Optional mapping of timestamp -> sentiment
             fng_df: Optional Fear & Greed Index DataFrame with [date, fng_norm, ...]
+            ablation_level: 'B', 'C1', 'C2', or 'C3'
             output_file: Optional file path to persist the CSV
 
         Returns:
             DataFrame containing engineered features, target labels, and metadata.
         """
-        logger.info("Engineering stationary quantitative features...")
-        df = self.feature_engineer.engineer_features(ohlcv_data, sentiment_data, fng_df=fng_df)
+        logger.info(f"Engineering stationary quantitative features (Ablation: {ablation_level})...")
+        df = self.feature_engineer.engineer_features(
+            ohlcv_data, sentiment_data, fng_df=fng_df, ablation_level=ablation_level
+        )
 
         logger.info("Generating Triple Barrier target labels...")
         df = self.label_generator.generate_labels(df)
