@@ -1,0 +1,20 @@
+{
+  "A - XGBoost Alone (v3.0.0)": {
+    "total_trades": 36713,
+    "win_rate": 0.3098768308777538,
+    "profit_factor": 0.3857981278209481,
+    "sharpe": -5.9515965258727945,
+    "max_drawdown": -0.9681384678749965,
+    "cumulative_return": -1452.9752279065644,
+    "f1": 0.8720049322780293
+  },
+  "B - Server AI + XGBoost (benchmark-b)": {
+    "total_trades": 36668,
+    "win_rate": 0.3115203490398409,
+    "profit_factor": 0.387480158782578,
+    "sharpe": -5.929619743165327,
+    "max_drawdown": -0.9667413189216678,
+    "cumulative_return": -1442.461405385619,
+    "f1": 0.8708876644043031
+  }
+}
