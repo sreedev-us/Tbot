@@ -215,9 +215,12 @@ class FeatureEngineer:
         feats["day_cos"] = np.cos(2 * np.pi * weekdays / 7.0)
 
         # ---------------------------------------------------------------------
-        # 8. Sentiment Features (if available)
+        # 8. Sentiment & News (Mocked for now if missing)
         # ---------------------------------------------------------------------
-        if sentiment_data:
+        if "sentiment" in df.columns:
+            feats["sentiment"] = df["sentiment"]
+            feats["sentiment_ma_5"] = df["sentiment"].rolling(window=5).mean().fillna(0)
+        elif sentiment_data:
             sent_series = df["timestamp"].map(sentiment_data).fillna(0.0)
             feats["sentiment"] = sent_series
             feats["sentiment_ma_5"] = sent_series.rolling(5).mean()
@@ -234,7 +237,10 @@ class FeatureEngineer:
         feats["price_close"] = close
 
         features_df = pd.DataFrame(feats, index=df.index)
-        return pd.concat([df, features_df], axis=1).dropna().reset_index(drop=True)
+        # Drop any columns in df that overlap with engineered features to avoid duplicates
+        cols_to_drop = [c for c in df.columns if c in features_df.columns]
+        df_clean = df.drop(columns=cols_to_drop)
+        return pd.concat([df_clean, features_df], axis=1).dropna().reset_index(drop=True)
 
     def _calculate_rsi(self, prices: pd.Series, period: int = 14) -> pd.Series:
         """Calculate Relative Strength Index using Wilder's exponential moving average."""

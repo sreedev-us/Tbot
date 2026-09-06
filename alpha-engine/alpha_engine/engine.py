@@ -16,6 +16,24 @@ from alpha_engine.signals import evaluate_mean_reversion
 from alpha_engine.ai_signals import AISignalEvaluator
 
 
+def fetch_live_sentiment(backend_url: str, symbol: str) -> float:
+    """Fetch the latest market sentiment score for a symbol from the backend.
+    Returns a float in [-1.0, 1.0], defaulting to 0.0 if unavailable."""
+    try:
+        response = requests.get(
+            f"{backend_url}/api/v1/sentiment",
+            params={"asset": symbol},
+            timeout=3,
+        )
+        if response.status_code == 204:
+            return 0.0
+        response.raise_for_status()
+        data = response.json()
+        return float(data.get("score", 0.0))
+    except Exception:
+        return 0.0
+
+
 def fetch_ohlcv_frame(exchange: Any, symbol: str, timeframe: str = "1m", limit: int = 100) -> pd.DataFrame:
     candles = exchange.fetch_ohlcv(symbol, timeframe=timeframe, limit=limit)
     frame = pd.DataFrame(
@@ -156,6 +174,10 @@ def run() -> None:
 
             # Generate signal using configured strategy
             if config.ai_enable and ai_evaluator is not None:
+                # Fetch live sentiment score from backend and inject into df
+                sentiment_score = fetch_live_sentiment(config.backend_base_url, config.default_symbol)
+                frame = frame.copy()
+                frame["sentiment"] = sentiment_score
                 signal_obj = ai_evaluator.evaluate_ai_signal(
                     df=frame,
                     exchange=config.default_exchange,
