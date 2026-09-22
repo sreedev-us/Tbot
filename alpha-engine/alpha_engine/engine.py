@@ -8,12 +8,15 @@ import pandas as pd
 import requests
 from decimal import Decimal
 from datetime import UTC, datetime
+from uuid import uuid4
 
 from alpha_engine.backend_client import close_trade, get_open_trade, send_telemetry, submit_signal, sync_candles
 from alpha_engine.config import load_config
 from alpha_engine.exchanges import build_exchange
-from alpha_engine.signals import evaluate_mean_reversion
+from alpha_engine.signals import RawSignal, evaluate_mean_reversion
 from alpha_engine.ai_signals import AISignalEvaluator
+from alpha_engine.regime_detector import RegimeDetector
+from alpha_engine.strategy_selector import StrategySelector
 
 
 def fetch_ohlcv_frame(exchange: Any, symbol: str, timeframe: str = "1m", limit: int = 100) -> pd.DataFrame:
@@ -115,7 +118,10 @@ def run() -> None:
     signal.signal(signal.SIGINT, _handle_shutdown)
     signal.signal(signal.SIGTERM, _handle_shutdown)
     
-    strategy_mode = "AI" if config.ai_enable else "Mean-Reversion"
+    regime_detector = RegimeDetector()
+    strategy_selector = StrategySelector()
+
+    strategy_mode = "AI" if config.ai_enable else "Multi-Strategy-Regime"
     print(
         f"Alpha engine started for {config.default_exchange}:{config.default_symbol} "
         f"(sandbox={config.use_sandbox}, strategy={strategy_mode})"
@@ -181,15 +187,40 @@ def run() -> None:
                     take_profit_pct=config.take_profit_pct,
                 )
             else:
-                signal_obj = evaluate_mean_reversion(
-                    df=frame,
-                    exchange=config.default_exchange,
-                    symbol=config.default_symbol,
-                    order_notional=config.order_notional,
-                    strategy_name=config.strategy_name,
-                    stop_loss_pct=config.stop_loss_pct,
-                    take_profit_pct=config.take_profit_pct,
-                )
+                current_regime = regime_detector.detect(frame)
+                selection = strategy_selector.evaluate(frame, current_regime)
+
+                if selection is not None and selection.signal != 0:
+                    action = "BUY" if selection.signal == 1 else "SELL"
+                    market_price = Decimal(str(round(float(frame["close"].iloc[-1]), 8)))
+                    sl_pct = Decimal(str(round(float(selection.risk_params.get("sl_pct", float(config.stop_loss_pct))), 4)))
+                    tp_pct = Decimal(str(round(float(selection.risk_params.get("tp_pct", float(config.take_profit_pct))), 4)))
+                    stop_multiplier = sl_pct / Decimal("100")
+                    take_multiplier = tp_pct / Decimal("100")
+
+                    if action == "BUY":
+                        stop_loss_price = market_price * (Decimal("1") - stop_multiplier)
+                        take_profit_price = market_price * (Decimal("1") + take_multiplier)
+                    else:
+                        stop_loss_price = market_price * (Decimal("1") + stop_multiplier)
+                        take_profit_price = market_price * (Decimal("1") - take_multiplier)
+
+                    signal_obj = RawSignal(
+                        signal_id=f"sig-{uuid4().hex[:16]}",
+                        correlation_id=uuid4().hex[:16],
+                        asset=config.default_symbol,
+                        exchange=config.default_exchange,
+                        action=action,
+                        confidence=Decimal("0.85"),
+                        requested_notional=config.order_notional,
+                        strategy_name=f"{selection.strategy_name}-{current_regime}",
+                        generated_at=datetime.now(UTC),
+                        market_price=market_price,
+                        stop_loss_price=stop_loss_price.quantize(Decimal("0.00000001")),
+                        take_profit_price=take_profit_price.quantize(Decimal("0.00000001")),
+                    )
+                else:
+                    signal_obj = None
             
             if signal_obj is None:
                 print("No signal generated for this cycle.")
