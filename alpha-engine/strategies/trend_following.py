@@ -26,7 +26,9 @@ from strategies.base_strategy import BaseStrategy
 
 class TrendFollowingStrategy(BaseStrategy):
     name: str = "trend_following"
-    eligible_regimes: list[str] = ["uptrend", "downtrend"]
+
+    def is_eligible(self, state: 'MarketState') -> bool:
+        return state.trend in ["uptrend", "downtrend"]
 
     def __init__(self, fast_span: int = 20, slow_span: int = 50, adx_threshold: float = 25.0) -> None:
         self.fast_span = fast_span

@@ -187,8 +187,8 @@ def run() -> None:
                     take_profit_pct=config.take_profit_pct,
                 )
             else:
-                current_regime = regime_detector.detect(frame)
-                selection = strategy_selector.evaluate(frame, current_regime)
+                current_state = regime_detector.detect(frame)
+                selection = strategy_selector.evaluate(frame, current_state)
 
                 if selection is not None and selection.signal != 0:
                     action = "BUY" if selection.signal == 1 else "SELL"
@@ -213,7 +213,7 @@ def run() -> None:
                         action=action,
                         confidence=Decimal("0.85"),
                         requested_notional=config.order_notional,
-                        strategy_name=f"{selection.strategy_name}-{current_regime}",
+                        strategy_name=f"{selection.strategy_name}-{current_state.trend}-{current_state.volatility}",
                         generated_at=datetime.now(UTC),
                         market_price=market_price,
                         stop_loss_price=stop_loss_price.quantize(Decimal("0.00000001")),

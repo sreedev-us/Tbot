@@ -27,7 +27,9 @@ from strategies.base_strategy import BaseStrategy
 
 class BreakoutStrategy(BaseStrategy):
     name: str = "breakout"
-    eligible_regimes: list[str] = ["high_vol", "uptrend", "downtrend"]
+
+    def is_eligible(self, state: 'MarketState') -> bool:
+        return state.trend in ["uptrend", "downtrend"] and state.volatility == "high_vol"
 
     def __init__(self, window: int = 20, vol_multiplier: float = 1.5) -> None:
         self.window = window

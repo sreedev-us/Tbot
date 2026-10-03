@@ -6,7 +6,7 @@ Abstract base class for all trading strategies in the multi-strategy engine.
 Every strategy plugin must:
   1. Subclass BaseStrategy
   2. Set a unique `name` class attribute
-  3. Declare `eligible_regimes` (which regime states this strategy is active in)
+  3. Implement `is_eligible(state: MarketState) -> bool`
   4. Implement `signal(df)` → -1 / 0 / 1
   5. Implement `risk_parameters(df)` → dict with tp_pct, sl_pct, max_hold_bars
 
@@ -26,7 +26,6 @@ class BaseStrategy(ABC):
 
     # ── Class-level declarations (must be set in subclasses) ─────────────────
     name: str = ""                    # unique slug, e.g. "trend_following"
-    eligible_regimes: list[str] = []  # e.g. ["uptrend", "downtrend"]
 
     # ── Abstract interface ────────────────────────────────────────────────────
 
@@ -58,14 +57,13 @@ class BaseStrategy(ABC):
         """
         ...
 
-    # ── Concrete helpers ──────────────────────────────────────────────────────
-
-    def is_eligible(self, regime: str) -> bool:
-        """Return True if this strategy is designed for the given regime."""
-        return regime in self.eligible_regimes
+    @abstractmethod
+    def is_eligible(self, state: 'MarketState') -> bool:
+        """Return True if this strategy is designed for the given multi-dimensional MarketState."""
+        ...
 
     def __repr__(self) -> str:
-        return f"<Strategy:{self.name} regimes={self.eligible_regimes}>"
+        return f"<Strategy:{self.name}>"
 
     # ── ATR helper shared by concrete strategies ──────────────────────────────
 

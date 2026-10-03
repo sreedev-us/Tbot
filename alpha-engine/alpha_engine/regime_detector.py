@@ -16,9 +16,16 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
+from dataclasses import dataclass
+
+@dataclass(slots=True, frozen=True)
+class MarketState:
+    trend: str       # 'uptrend', 'downtrend', 'range', 'neutral'
+    volatility: str  # 'high_vol', 'normal_vol', 'low_vol'
+
 
 class RegimeDetector:
-    """Classifies the market regime for a single bar or an entire DataFrame."""
+    """Classifies the market into a multi-dimensional MarketState (trend + volatility)."""
 
     def __init__(
         self,
@@ -94,10 +101,10 @@ class RegimeDetector:
             "close": close,
         }
 
-    def detect(self, df: pd.DataFrame) -> str:
+    def detect(self, df: pd.DataFrame) -> MarketState:
         """Detect current regime for the latest bar in df."""
         if df.empty or len(df) < 20:
-            return "unknown"
+            return MarketState(trend="neutral", volatility="normal_vol")
 
         ind = self._calc_indicators(
             df,
@@ -118,31 +125,29 @@ class RegimeDetector:
         cur_fast = float(ind["ema_fast"].iloc[-1])
         cur_slow = float(ind["ema_slow"].iloc[-1])
 
-        # Priority 1: High volatility
-        if cur_atr > cur_q75:
-            return "high_vol"
-
-        # Priority 2: Trending
+        # Trend dimension
+        trend = "neutral"
         if cur_adx > self.adx_trend_threshold:
             if cur_fast > cur_slow and cur_close > cur_fast:
-                return "uptrend"
-            if cur_fast < cur_slow and cur_close < cur_fast:
-                return "downtrend"
+                trend = "uptrend"
+            elif cur_fast < cur_slow and cur_close < cur_fast:
+                trend = "downtrend"
+        elif cur_adx < self.adx_range_threshold:
+            trend = "range"
 
-        # Priority 3: Ranging
-        if cur_adx < self.adx_range_threshold:
-            return "range"
+        # Volatility dimension
+        volatility = "normal_vol"
+        if pd.notna(cur_q75) and cur_atr > cur_q75:
+            volatility = "high_vol"
+        elif pd.notna(cur_q25) and cur_atr < cur_q25:
+            volatility = "low_vol"
 
-        # Priority 4: Low volatility
-        if cur_atr < cur_q25:
-            return "low_vol"
+        return MarketState(trend=trend, volatility=volatility)
 
-        return "unknown"
-
-    def detect_series(self, df: pd.DataFrame) -> pd.Series:
-        """Vectorized classification across all bars in df."""
+    def detect_series(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Vectorized classification across all bars in df. Returns DataFrame with 'trend' and 'volatility'."""
         if df.empty:
-            return pd.Series(dtype=object)
+            return pd.DataFrame(columns=["trend", "volatility"])
 
         ind = self._calc_indicators(
             df,
@@ -156,20 +161,23 @@ class RegimeDetector:
         )
 
         n = len(df)
-        regimes = np.full(n, "unknown", dtype=object)
+        trend = np.full(n, "neutral", dtype=object)
+        vol = np.full(n, "normal_vol", dtype=object)
 
-        # Boolean masks
-        is_high_vol = ind["atr"] > ind["atr_q75"]
+        # Trend masks
         is_uptrend = (ind["adx"] > self.adx_trend_threshold) & (ind["ema_fast"] > ind["ema_slow"]) & (ind["close"] > ind["ema_fast"])
         is_downtrend = (ind["adx"] > self.adx_trend_threshold) & (ind["ema_fast"] < ind["ema_slow"]) & (ind["close"] < ind["ema_fast"])
         is_range = ind["adx"] < self.adx_range_threshold
+
+        trend[is_uptrend] = "uptrend"
+        trend[is_downtrend] = "downtrend"
+        trend[is_range] = "range"
+
+        # Volatility masks
+        is_high_vol = ind["atr"] > ind["atr_q75"]
         is_low_vol = ind["atr"] < ind["atr_q25"]
 
-        # Apply priority ordering
-        regimes[is_low_vol] = "low_vol"
-        regimes[is_range] = "range"
-        regimes[is_downtrend] = "downtrend"
-        regimes[is_uptrend] = "uptrend"
-        regimes[is_high_vol] = "high_vol"
+        vol[is_high_vol] = "high_vol"
+        vol[is_low_vol] = "low_vol"
 
-        return pd.Series(regimes, index=df.index)
+        return pd.DataFrame({"trend": trend, "volatility": vol}, index=df.index)

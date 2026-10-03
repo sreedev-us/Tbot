@@ -26,7 +26,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-from alpha_engine.regime_detector import RegimeDetector
+from alpha_engine.regime_detector import RegimeDetector, MarketState
 from alpha_engine.strategy_selector import StrategySelector
 from alpha_engine.training_pipeline import TrainingDataConfig, TrainingDataGenerator
 from strategies.base_strategy import BaseStrategy
@@ -40,7 +40,7 @@ logging.basicConfig(level=logging.WARNING)
 
 def run_multi_strategy_simulation(
     df: pd.DataFrame,
-    regimes: pd.Series,
+    state_df: pd.DataFrame,
     selector: StrategySelector,
     fee_pct: float = 0.20,
     start_idx: int = 55,
@@ -61,10 +61,12 @@ def run_multi_strategy_simulation(
 
     i = start_idx
     while i < n - 36:
-        regime = regimes.iloc[i]
+        trend = state_df["trend"].iloc[i]
+        volatility = state_df["volatility"].iloc[i]
+        state = MarketState(trend=trend, volatility=volatility)
         window_df = df.iloc[: i + 1]
 
-        selection = selector.evaluate(window_df, regime)
+        selection = selector.evaluate(window_df, state)
         if selection is None or selection.signal == 0:
             i += 1
             continue
@@ -121,7 +123,8 @@ def run_multi_strategy_simulation(
             "bar_entry": i,
             "bar_exit": exit_bar,
             "strategy": strat_name,
-            "regime": regime,
+            "trend": trend,
+            "volatility": volatility,
             "signal": "BUY" if sig == 1 else "SELL",
             "pnl_pct": trade_pnl_pct,
             "exit_reason": exit_reason,
@@ -269,7 +272,7 @@ def main():
     ).sort_values("timestamp").reset_index(drop=True)
 
     detector = RegimeDetector()
-    regimes = detector.detect_series(full_df)
+    state_df = detector.detect_series(full_df)
 
     # Initialize registry & selector
     # Register instances
@@ -290,7 +293,7 @@ def main():
 
     # 1. Full 180 Days Walk-Forward
     print("\n[A] FULL 180-DAY WALK-FORWARD")
-    res_full_multi = run_multi_strategy_simulation(full_df, regimes, selector, start_idx=55)
+    res_full_multi = run_multi_strategy_simulation(full_df, state_df, selector, start_idx=55)
     res_full_model_b = run_standalone_model_b(full_df, start_idx=55)
 
     print(f"\n  MULTI-STRATEGY SYSTEM:")
@@ -319,7 +322,7 @@ def main():
     print("    *Where Model B previously suffered -28.4% Net Return / 0.39 PF*")
     print("-" * 80)
 
-    res_holdout_multi = run_multi_strategy_simulation(full_df, regimes, selector, start_idx=split_idx)
+    res_holdout_multi = run_multi_strategy_simulation(full_df, state_df, selector, start_idx=split_idx)
     res_holdout_model_b = run_standalone_model_b(full_df, start_idx=split_idx)
 
     btc_h_ret = (full_df["close"].iloc[-1] - full_df["close"].iloc[split_idx]) / full_df["close"].iloc[split_idx] * 100

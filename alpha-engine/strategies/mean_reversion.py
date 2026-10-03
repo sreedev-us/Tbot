@@ -31,7 +31,9 @@ logger = logging.getLogger(__name__)
 
 class MeanReversionStrategy(BaseStrategy):
     name: str = "mean_reversion"
-    eligible_regimes: list[str] = ["range", "low_vol"]
+
+    def is_eligible(self, state: 'MarketState') -> bool:
+        return state.trend == "range" and state.volatility in ["low_vol", "normal_vol"]
 
     def __init__(
         self,

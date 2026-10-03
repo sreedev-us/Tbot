@@ -40,12 +40,13 @@ logging.basicConfig(level=logging.WARNING)
 def simulate_strategy_in_regimes(
     strategy: BaseStrategy,
     df: pd.DataFrame,
-    regimes: pd.Series,
-    target_regime: str | None = None,
+    state_df: pd.DataFrame,
+    target_trend: str | None = None,
+    target_vol: str | None = None,
     fee_pct: float = 0.20,
 ) -> dict[str, Any] | None:
     """
-    Simulate a strategy on bars where regime == target_regime (or all if target_regime is None).
+    Simulate a strategy on bars where the market state matches target_trend and target_vol.
     """
     close = df["close"].values
     high = df["high"].values
@@ -67,8 +68,13 @@ def simulate_strategy_in_regimes(
     i = min_lookback
     while i < n - 36:
         # Check regime filter if specified
-        current_regime = regimes.iloc[i]
-        if target_regime is not None and current_regime != target_regime:
+        current_trend = state_df["trend"].iloc[i]
+        current_vol = state_df["volatility"].iloc[i]
+        
+        if target_trend is not None and target_trend != "ALL" and current_trend != target_trend:
+            i += 1
+            continue
+        if target_vol is not None and target_vol != "ALL" and current_vol != target_vol:
             i += 1
             continue
 
@@ -181,12 +187,12 @@ def main():
 
     # Detect regimes across all bars
     detector = RegimeDetector()
-    regimes = detector.detect_series(full_df)
+    state_df = detector.detect_series(full_df)
 
-    print("\nRegime Distribution:")
-    regime_counts = regimes.value_counts()
-    for reg, count in regime_counts.items():
-        print(f"  {reg:<12}: {count:>5} bars ({count / len(regimes) * 100:>5.1f}%)")
+    print("\nState Distribution:")
+    state_counts = state_df.value_counts()
+    for (trend, vol), count in state_counts.items():
+        print(f"  {trend:<12} / {vol:<12}: {count:>5} bars ({count / len(state_df) * 100:>5.1f}%)")
 
     # Instantiate strategies
     strategies: list[BaseStrategy] = [
@@ -195,52 +201,64 @@ def main():
         BreakoutStrategy(),
     ]
 
-    target_regimes = ["range", "uptrend", "downtrend", "high_vol", "low_vol", "unknown", "ALL"]
+    trends = ["range", "uptrend", "downtrend", "neutral"]
+    vols = ["low_vol", "normal_vol", "high_vol"]
 
-    matrix: dict[str, dict[str, Any]] = {}
+    matrix: dict[str, dict[tuple[str, str], Any]] = {}
 
     for strat in strategies:
-        print(f"\nEvaluating {strat.name} across regimes...")
+        print(f"\nEvaluating {strat.name} across market states...")
         matrix[strat.name] = {}
-        for reg in target_regimes:
-            target = None if reg == "ALL" else reg
-            res = simulate_strategy_in_regimes(strat, full_df, regimes, target_regime=target)
-            matrix[strat.name][reg] = res
+        for trend in trends:
+            for vol in vols:
+                res = simulate_strategy_in_regimes(strat, full_df, state_df, target_trend=trend, target_vol=vol)
+                matrix[strat.name][(trend, vol)] = res
+        # Overall
+        res_all = simulate_strategy_in_regimes(strat, full_df, state_df, target_trend="ALL", target_vol="ALL")
+        matrix[strat.name][("ALL", "ALL")] = res_all
 
     # Print markdown table
     print("\n" + "=" * 80)
     print("  PHASE 5: REGIME × STRATEGY OBSERVATIONAL MATRIX (180 DAYS, 1H)")
     print("=" * 80)
 
-    # Table format: Regime | Strategy | Trades | Win% | PF | Sharpe | NetRet | Bias (B/S)
-    print("\n| Regime | Strategy | Trades | Win% | Profit Factor | Sharpe | Net Return | Bias (Buy/Sell) |")
-    print("|---|---|---|---|---|---|---|---|")
-    for reg in target_regimes:
-        for strat in strategies:
-            res = matrix[strat.name][reg]
-            if res["trades"] == 0:
-                print(f"| {reg:<10} | {strat.name:<15} | {0:>6} | {'-':>5} | {'-':>13} | {'-':>6} | {'0.0%':>10} | {'-':>15} |")
-            else:
+    print("\n| Trend | Volatility | Strategy | Trades | Win% | Profit Factor | Sharpe | Net Return | Bias (Buy/Sell) |")
+    print("|---|---|---|---|---|---|---|---|---|")
+    for trend in trends:
+        for vol in vols:
+            for strat in strategies:
+                res = matrix[strat.name][(trend, vol)]
+                if res["trades"] == 0:
+                    continue
                 bias_str = f"{res['buy_pct']:.0f}% / {res['sell_pct']:.0f}%"
                 print(
-                    f"| {reg:<10} | {strat.name:<15} | {res['trades']:>6} | {res['win_rate']:>4.1f}% | "
+                    f"| {trend:<10} | {vol:<10} | {strat.name:<15} | {res['trades']:>6} | {res['win_rate']:>4.1f}% | "
                     f"{res['profit_factor']:>13.2f} | {res['sharpe']:>+6.2f} | {res['net_ret']:>+9.1f}% | {bias_str:>15} |"
                 )
 
     # Summary table: Net Return Matrix
     print("\n\n### Net Return Matrix (%)\n")
-    headers = ["Regime"] + [s.name for s in strategies]
+    headers = ["Trend", "Volatility"] + [s.name for s in strategies]
     print("| " + " | ".join(headers) + " |")
     print("|" + "|".join(["---"] * len(headers)) + "|")
-    for reg in target_regimes:
-        row = [reg]
-        for strat in strategies:
-            res = matrix[strat.name][reg]
-            if res["trades"] == 0:
-                row.append("0.0% (0)")
-            else:
-                row.append(f"{res['net_ret']:+.1f}% ({res['trades']}t, PF {res['profit_factor']:.2f})")
-        print("| " + " | ".join(row) + " |")
+    for trend in trends:
+        for vol in vols:
+            row = [trend, vol]
+            for strat in strategies:
+                res = matrix[strat.name][(trend, vol)]
+                if res["trades"] == 0:
+                    row.append("0.0% (0)")
+                else:
+                    row.append(f"{res['net_ret']:+.1f}% ({res['trades']}t, PF {res['profit_factor']:.2f})")
+            # Only print row if at least one strategy traded
+            if any(matrix[s.name][(trend, vol)]["trades"] > 0 for s in strategies):
+                print("| " + " | ".join(row) + " |")
+        
+    row = ["ALL", "ALL"]
+    for strat in strategies:
+        res = matrix[strat.name][("ALL", "ALL")]
+        row.append(f"{res['net_ret']:+.1f}% ({res['trades']}t, PF {res['profit_factor']:.2f})")
+    print("| " + " | ".join(row) + " |")
 
 
 if __name__ == "__main__":

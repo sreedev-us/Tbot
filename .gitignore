@@ -16,6 +16,15 @@ alpha-engine/models/optuna_temp/
 alpha-engine/data/live/
 alpha-engine/training_data/
 
+# Phase research data directories (large CSVs — code only in git)
+alpha-engine/data/phase9/
+alpha-engine/data/phase10/
+alpha-engine/data/phase13/
+alpha-engine/data/phase14/
+alpha-engine/data/phase15/
+alpha-engine/data/phase16/
+alpha-engine/data/phase16/probe/
+
 # Optuna DBs
 *.db
 
